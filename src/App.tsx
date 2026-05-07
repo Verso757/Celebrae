@@ -11,6 +11,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import DashboardInvitation from './pages/DashboardInvitation';
 import PublicInvitation from './pages/PublicInvitation';
+import DemoInvitation from './pages/DemoInvitation';
 import { Toaster } from 'react-hot-toast';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,7 @@ export default function App() {
             </PrivateRoute>
           } />
           <Route path="/i/:slug" element={<PublicInvitation />} />
+          <Route path="/demo" element={<DemoInvitation />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="bottom-right" />

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../firebase';
-import { useNavigate } from 'react-router-dom';
-import { PartyPopper, LogIn } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { PartyPopper, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../components/AuthProvider';
 
 export default function Login() {
@@ -33,14 +33,17 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-6">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+    <div className="min-h-screen bg-brand-bg flex flex-col justify-center items-center p-6 font-sans">
+      <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-brand-dark hover:text-brand-main transition-colors font-medium">
+        <ArrowLeft className="w-5 h-5" /> Volver
+      </Link>
+      <div className="w-full max-w-md bg-white rounded-[24px] shadow-xl shadow-brand-soft/50 overflow-hidden border border-brand-soft">
         <div className="p-10 text-center">
-          <div className="inline-flex justify-center items-center w-16 h-16 rounded-full bg-rose-100 text-rose-500 mb-6">
+          <div className="inline-flex justify-center items-center w-16 h-16 rounded-full bg-brand-soft text-brand-main mb-6">
             <PartyPopper className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Bienvenido</h2>
-          <p className="text-gray-500 mb-8">Accede para gestionar tus eventos</p>
+          <h2 className="text-3xl font-serif font-bold text-brand-dark mb-2">Bienvenido a Celebrae</h2>
+          <p className="text-brand-dark/70 font-light mb-8">Accede para crear y gestionar eventos extraordinarios</p>
 
           {error && (
             <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm">
@@ -51,7 +54,7 @@ export default function Login() {
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-800 font-semibold py-3 px-4 rounded-xl transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-3 bg-white border-[0.5px] border-brand-medium hover:bg-brand-bg text-brand-dark font-bold py-4 px-4 rounded-full transition-all disabled:opacity-50"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>

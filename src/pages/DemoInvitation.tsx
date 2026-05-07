@@ -1,105 +1,58 @@
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, collection, query, where, getDocs, addDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
-import { Calendar, MapPin, PartyPopper, Check, Gift, Camera } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Calendar, MapPin, PartyPopper, Check, Gift, Camera, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function PublicInvitation() {
-  const { slug } = useParams();
-  const [invitation, setInvitation] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  
+export default function DemoInvitation() {
   const [submittingRsvp, setSubmittingRsvp] = useState(false);
   const [rsvpSuccess, setRsvpSuccess] = useState(false);
 
-  // Subs
-  const [registryItems, setRegistryItems] = useState<any[]>([]);
-  const [galleryPhotos, setGalleryPhotos] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!slug) return;
-
-    const loadInvitation = async () => {
-      try {
-        const q = query(collection(db, 'invitations'), where('slug', '==', slug), where('active', '==', true));
-        const qs = await getDocs(q);
-        if (qs.empty) {
-          setError('Invitación no encontrada o inactiva.');
-        } else {
-          setInvitation({ id: qs.docs[0].id, ...qs.docs[0].data() });
-        }
-      } catch (e) {
-        handleFirestoreError(e, OperationType.LIST, 'invitations');
-        setError('Error al cargar la invitación.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadInvitation();
-  }, [slug]);
-
-  useEffect(() => {
-    if (!invitation) return;
-    
-    const unsubR = onSnapshot(collection(db, `invitations/${invitation.id}/registry_items`), (snap) => {
-      setRegistryItems(snap.docs.map(d => ({id: d.id, ...d.data()})));
-    });
-    
-    const unsubG = onSnapshot(collection(db, `invitations/${invitation.id}/gallery_photos`), (snap) => {
-      setGalleryPhotos(snap.docs.map(d => ({id: d.id, ...d.data()})));
-    });
-
-    return () => { unsubR(); unsubG(); };
-  }, [invitation]);
-
-  const handleRsvp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!invitation) return;
-    
-    setSubmittingRsvp(true);
-    const form = e.target as HTMLFormElement;
-    
-    try {
-      await addDoc(collection(db, `invitations/${invitation.id}/rsvp_responses`), {
-        name: form.fullName.value,
-        attending: form.attending.value,
-        guests: parseInt(form.guestsCount.value) || 1,
-        companionNames: form.companionNames.value || '',
-        message: form.message.value || '',
-        createdAt: serverTimestamp()
-      });
-      setRsvpSuccess(true);
-    } catch (e) {
-      handleFirestoreError(e, OperationType.CREATE, `invitations/${invitation.id}/rsvp_responses`);
-      toast.error('Ocurrió un error. Intenta de nuevo.');
-    } finally {
-      setSubmittingRsvp(false);
-    }
+  const invitation = {
+    title: "Boda de Ana & Carlos",
+    date: { seconds: new Date("2026-12-20T20:00:00Z").getTime() / 1000 },
+    venue: "Hacienda Los Arcángeles",
+    coverImageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1200",
+    welcomeMessage: "Nos llena de alegría invitarte a compartir con nosotros el día más importante de nuestras vidas.\n¡Prepárate para una noche inolvidable!"
   };
 
-  const handleReserveGift = async (itemId: string) => {
+  const [registryItems, setRegistryItems] = useState([
+    { id: '1', title: 'Aportación para Luna de Miel', url: 'https://example.com', reserved: false },
+    { id: '2', title: 'Juego de Vajilla de Cerámica', url: 'https://example.com', reserved: true, reservedBy: 'Familia Gómez' }
+  ]);
+
+  const [galleryPhotos, setGalleryPhotos] = useState([
+    { id: '1', imageUrl: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=400', uploadedBy: 'Laura' },
+    { id: '2', imageUrl: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&q=80&w=400', uploadedBy: 'Diego' }
+  ]);
+
+  const handleRsvp = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingRsvp(true);
+    
+    // Simulate network delay
+    setTimeout(() => {
+      setSubmittingRsvp(false);
+      setRsvpSuccess(true);
+      toast.success('¡Demo: Confirmación exitosa!', { icon: '🎉' });
+    }, 1200);
+  };
+
+  const handleReserveGift = (itemId: string) => {
     const name = window.prompt("¿Cuál es tu nombre? (Para marcarlo como reservado por ti)");
     if (!name) return;
-    try {
-      await updateDoc(doc(db, `invitations/${invitation.id}/registry_items/${itemId}`), {
-        reserved: true,
-        reservedBy: name
-      });
-      toast.success('¡Gracias por tu regalo!');
-    } catch(e) {
-      toast.error('Error al reservar el regalo.');
-    }
+    
+    setRegistryItems(items => items.map(item => 
+      item.id === itemId ? { ...item, reserved: true, reservedBy: name } : item
+    ));
+    toast.success('¡Demo: Regalo reservado con éxito!', { icon: '🎁' });
   };
 
-  const handleAddPhoto = async (e: React.FormEvent) => {
+  const handleAddPhoto = (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const fileInput = form.imageFile as HTMLInputElement;
     const by = form.uploaderName.value;
     
-    if (!invitation?.id) return;
     if (!fileInput.files || fileInput.files.length === 0 || !by) {
       toast.error('Por favor selecciona una foto y escribe tu nombre.');
       return;
@@ -109,8 +62,8 @@ export default function PublicInvitation() {
     const reader = new FileReader();
 
     reader.onload = (event) => {
-      const img = new window.Image();
-      img.onload = async () => {
+      const img = new Image();
+      img.onload = () => {
         // Resize image to fit within roughly 1MB (max 800x800)
         const canvas = document.createElement('canvas');
         const MAX_WIDTH = 800;
@@ -137,17 +90,12 @@ export default function PublicInvitation() {
 
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         
-        try {
-          await addDoc(collection(db, `invitations/${invitation.id}/gallery_photos`), {
-            imageUrl: dataUrl,
-            uploadedBy: by,
-            createdAt: serverTimestamp()
-          });
-          form.reset();
-          toast.success('Foto añadida a la galería', { icon: '📸' });
-        } catch(err) {
-          toast.error('Error al subir la foto');
-        }
+        setGalleryPhotos(photos => [
+          { id: Date.now().toString(), imageUrl: dataUrl, uploadedBy: by },
+          ...photos
+        ]);
+        form.reset();
+        toast.success('¡Foto añadida a la galería!', { icon: '📸' });
       };
       img.src = event.target?.result as string;
     };
@@ -155,28 +103,26 @@ export default function PublicInvitation() {
     reader.readAsDataURL(file);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-brand-bg"><span className="animate-spin text-brand-main text-4xl font-serif">⌛</span></div>;
-  if (error || !invitation) return <div className="min-h-screen flex items-center justify-center bg-brand-bg text-brand-dark/60 font-serif text-xl">{error}</div>;
-
-  // Render a minimal/elegant template
   return (
-    <div className="min-h-screen bg-brand-bg font-serif text-brand-dark pb-20">
+    <div className="min-h-screen bg-brand-bg font-serif text-brand-dark pb-20 pt-14">
+      {/* Demo Top Navigation Bar */}
+      <div className="fixed top-0 left-0 right-0 bg-brand-dark text-brand-bg px-6 py-3 flex items-center justify-between z-50 shadow-md">
+        <Link to="/" className="flex items-center gap-2 hover:text-white transition-colors text-sm font-sans font-medium">
+          <ArrowLeft className="w-4 h-4" /> Volver a Celebrae
+        </Link>
+        <span className="font-sans text-sm font-bold tracking-widest uppercase opacity-80 border border-brand-bg/30 px-3 py-1 rounded-full">
+          Modo Demo
+        </span>
+      </div>
+
       {/* Hero Image / Banner */}
       <div className="w-full h-screen max-h-[60vh] relative">
-        {invitation.coverImageUrl ? (
-          <img src={invitation.coverImageUrl} className="w-full h-full object-cover" alt="Portada de la invitación" />
-        ) : (
-          <div className="w-full h-full bg-brand-soft flex items-center justify-center">
-            <span className="text-brand-main">
-              <PartyPopper className="w-24 h-24 opacity-30" />
-            </span>
-          </div>
-        )}
+        <img src={invitation.coverImageUrl} alt="Boda" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-black/30" /> {/* Overlay */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 text-white text-shadow-sm">
           <h1 className="text-5xl sm:text-7xl mb-4 font-normal tracking-wide" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>{invitation.title}</h1>
           <p className="text-xl sm:text-2xl opacity-90 font-sans tracking-widest uppercase font-light" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
-            {invitation.date?.seconds ? new Date(invitation.date.seconds * 1000).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) : 'Fecha por definir'}
+            {new Date(invitation.date.seconds * 1000).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}
           </p>
         </div>
       </div>
@@ -204,7 +150,7 @@ export default function PublicInvitation() {
               <div>
                 <h4 className="font-bold text-brand-dark mb-1 text-lg">Fecha</h4>
                 <p className="text-brand-dark/80 font-light">
-                  {invitation.date?.seconds ? new Date(invitation.date.seconds * 1000).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'}) : 'Fecha por definir'}
+                  {new Date(invitation.date.seconds * 1000).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}
                 </p>
               </div>
             </div>
@@ -235,6 +181,7 @@ export default function PublicInvitation() {
                </div>
                <h4 className="text-2xl font-bold text-brand-dark mb-2 font-serif">¡Gracias por confirmar!</h4>
                <p className="text-brand-dark/80 font-light">Tu respuesta ha sido registrada exitosamente.</p>
+               <p className="text-xs text-brand-main mt-6 font-bold">(Nota: Esto es una demostración)</p>
             </div>
           ) : (
             <form onSubmit={handleRsvp} className="space-y-6 relative z-10">
@@ -350,11 +297,10 @@ export default function PublicInvitation() {
             </div>
           )}
         </div>
-
       </div>
       
       <footer className="text-center py-12 text-sm text-brand-dark/60 font-sans border-t border-brand-soft mt-20">
-        Invitación creada con <a href="/" className="font-bold text-brand-main hover:text-brand-main/80">Celebrae</a>
+        Demo de Invitación por <Link to="/" className="font-bold text-brand-main hover:text-brand-main/80">Celebrae</Link>
       </footer>
     </div>
   );
