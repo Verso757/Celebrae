@@ -1,0 +1,178 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { allow read, write: if false; }
+
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return false; } 
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    function isValidUser(data) {
+      return data.size() >= 3 && data.size() <= 6
+        && data.uid is string && data.uid.size() <= 128
+        && data.email is string && data.email.size() <= 200
+        && data.plan in ['free', 'basic', 'pro']
+        && data.createdAt is timestamp;
+    }
+
+    function isValidInvitation(data) {
+      return data.size() >= 8 && data.size() <= 12
+        && data.ownerId is string && data.ownerId.size() <= 128
+        && data.slug is string && data.slug.size() >= 3 && data.slug.size() <= 100 && data.slug.matches('^[a-z0-9\\-]+$')
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.date is timestamp
+        && data.venue is string && data.venue.size() <= 500
+        && data.theme is string && data.theme.size() <= 100
+        && data.active is bool
+        && data.createdAt is timestamp
+        && ( !('welcomeMessage' in data) || (data.welcomeMessage is string && data.welcomeMessage.size() <= 1000) )
+        && ( !('mapsUrl' in data) || (data.mapsUrl is string && data.mapsUrl.size() <= 1000) )
+        && ( !('musicUrl' in data) || (data.musicUrl is string && data.musicUrl.size() <= 1000) )
+        && ( !('coverImageUrl' in data) || (data.coverImageUrl is string && data.coverImageUrl.size() <= 1000) );
+    }
+
+    function isValidRsvp(data) {
+      return data.size() >= 4 && data.size() <= 7
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.attending in ['yes', 'no', 'maybe']
+        && data.guests is number && data.guests >= 0 && data.guests <= 20
+        && data.createdAt is timestamp
+        && ( !('companionNames' in data) || (data.companionNames is string && data.companionNames.size() <= 1000) )
+        && ( !('tableId' in data) || (data.tableId is string && data.tableId.size() <= 128) )
+        && ( !('message' in data) || (data.message is string && data.message.size() <= 1000) );
+    }
+
+    function isValidTable(data) {
+      return data.size() >= 2 && data.size() <= 3
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.capacity is number && data.capacity >= 1 && data.capacity <= 100;
+    }
+
+    function isValidGalleryPhoto(data) {
+      return data.size() >= 3 && data.size() <= 4
+        && data.imageUrl is string && data.imageUrl.size() <= 1000
+        && data.uploadedBy is string && data.uploadedBy.size() <= 100
+        && data.createdAt is timestamp;
+    }
+
+    function isValidRegistryItem(data) {
+      return data.size() >= 2 && data.size() <= 4
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.reserved is bool
+        && ( !('url' in data) || (data.url is string && data.url.size() <= 1000) )
+        && ( !('reservedBy' in data) || (data.reservedBy is string && data.reservedBy.size() <= 100) );
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId
+                    && isValidId(userId)
+                    && isValidUser(incoming())
+                    && incoming().uid == request.auth.uid
+                    && incoming().createdAt == request.time
+                    && incoming().keys().hasAll(['uid', 'email', 'plan', 'createdAt']);
+      allow update: if isSignedIn() && request.auth.uid == userId
+                    && isValidId(userId)
+                    && isValidUser(incoming())
+                    && incoming().uid == existing().uid
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['plan']);
+    }
+
+    match /invitations/{invitationId} {
+      // Allows users to list their own, and apps to list 'active' ones by query.
+      allow list: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || resource.data.active == true;
+      allow get: if true;
+
+      allow create: if isSignedIn()
+                    && isValidId(invitationId)
+                    && isValidInvitation(incoming())
+                    && incoming().ownerId == request.auth.uid
+                    && incoming().createdAt == request.time
+                    && incoming().keys().hasAll(['ownerId', 'slug', 'title', 'date', 'venue', 'theme', 'active', 'createdAt']);
+
+      allow update: if isSignedIn()
+                    && isValidId(invitationId)
+                    && existing().ownerId == request.auth.uid
+                    && isValidInvitation(incoming())
+                    && incoming().ownerId == existing().ownerId
+                    && incoming().createdAt == existing().createdAt
+                    && incoming().diff(existing()).affectedKeys().hasOnly([
+                         'title', 'date', 'venue', 'mapsUrl', 'musicUrl', 'coverImageUrl', 'theme', 'active', 'slug', 'welcomeMessage'
+                       ]);
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+
+      match /rsvp_responses/{rsvpId} {
+        // Guests can create RSVPs unauthenticated. (Appends only)
+        allow create: if isValidId(rsvpId)
+                      && isValidRsvp(incoming())
+                      && incoming().createdAt == request.time
+                      && incoming().keys().hasAll(['name', 'attending', 'guests', 'createdAt'])
+                      && get(/databases/$(database)/documents/invitations/$(invitationId)).data.active == true;
+
+        allow update: if isSignedIn()
+                      && get(/databases/$(database)/documents/invitations/$(invitationId)).data.ownerId == request.auth.uid
+                      && isValidRsvp(incoming())
+                      && incoming().diff(existing()).affectedKeys().hasOnly(['tableId']);
+                      
+        allow list, get, delete: if isSignedIn()
+                         && get(/databases/$(database)/documents/invitations/$(invitationId)).data.ownerId == request.auth.uid;
+      }
+
+      match /tables/{tableId} {
+        allow create: if isSignedIn()
+                      && get(/databases/$(database)/documents/invitations/$(invitationId)).data.ownerId == request.auth.uid
+                      && isValidId(tableId)
+                      && isValidTable(incoming())
+                      && incoming().keys().hasAll(['name', 'capacity']);
+                      
+        allow update: if isSignedIn()
+                      && get(/databases/$(database)/documents/invitations/$(invitationId)).data.ownerId == request.auth.uid
+                      && isValidTable(incoming())
+                      && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'capacity']);
+                      
+        allow list, get, delete: if isSignedIn()
+                                 && get(/databases/$(database)/documents/invitations/$(invitationId)).data.ownerId == request.auth.uid;
+      }
+
+      match /registry_items/{registryItemId} {
+        allow create: if isSignedIn()
+                      && get(/databases/$(database)/documents/invitations/$(invitationId)).data.ownerId == request.auth.uid
+                      && isValidId(registryItemId)
+                      && isValidRegistryItem(incoming())
+                      && incoming().keys().hasAll(['title', 'reserved']);
+                      
+        allow update: if isValidRegistryItem(incoming())
+                      && (
+                           // Guest reserving an item
+                           ( !isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['reserved', 'reservedBy']) 
+                             && incoming().reserved == true && existing().reserved == false )
+                           ||
+                           // Owner modifying item
+                           ( isSignedIn() && get(/databases/$(database)/documents/invitations/$(invitationId)).data.ownerId == request.auth.uid
+                             && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'url', 'reserved', 'reservedBy']) )
+                         );
+                         
+        allow delete: if isSignedIn()
+                      && get(/databases/$(database)/documents/invitations/$(invitationId)).data.ownerId == request.auth.uid;
+                      
+        allow list, get: if true;
+      }
+      
+      match /gallery_photos/{photoId} {
+        allow create: if isValidId(photoId)
+                      && isValidGalleryPhoto(incoming())
+                      && incoming().createdAt == request.time
+                      && incoming().keys().hasAll(['imageUrl', 'uploadedBy', 'createdAt'])
+                      && get(/databases/$(database)/documents/invitations/$(invitationId)).data.active == true;
+
+        allow delete: if isSignedIn()
+                      && get(/databases/$(database)/documents/invitations/$(invitationId)).data.ownerId == request.auth.uid;
+        
+        allow list, get: if true;
+      }
+    }
+  }
+}

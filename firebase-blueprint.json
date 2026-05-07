@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "SaaS customer who manages invitations.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "plan": { "type": "string", "enum": ["free", "basic", "pro"] },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["uid", "email", "plan", "createdAt"]
+    },
+    "Invitation": {
+      "title": "Invitation",
+      "description": "An event invitation.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "timestamp" },
+        "venue": { "type": "string" },
+        "mapsUrl": { "type": "string" },
+        "musicUrl": { "type": "string" },
+        "coverImageUrl": { "type": "string" },
+        "theme": { "type": "string" },
+        "active": { "type": "boolean" },
+        "welcomeMessage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["ownerId", "slug", "title", "date", "venue", "theme", "active", "createdAt"]
+    },
+    "RSVPResponse": {
+      "title": "RSVPResponse",
+      "description": "A guest RSVP.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "attending": { "type": "string", "enum": ["yes", "no", "maybe"] },
+        "guests": { "type": "number" },
+        "companionNames": { "type": "string" },
+        "message": { "type": "string" },
+        "tableId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["name", "attending", "guests", "createdAt"]
+    },
+    "Table": {
+      "title": "Table",
+      "description": "A seating table.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "capacity": { "type": "number" }
+      },
+      "required": ["name", "capacity"]
+    },
+    "GalleryPhoto": {
+      "title": "GalleryPhoto",
+      "description": "A collaborative gallery photo.",
+      "type": "object",
+      "properties": {
+        "imageUrl": { "type": "string" },
+        "uploadedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["imageUrl", "uploadedBy", "createdAt"]
+    },
+    "RegistryItem": {
+      "title": "RegistryItem",
+      "description": "A gift registry item.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "reserved": { "type": "boolean" },
+        "reservedBy": { "type": "string" }
+      },
+      "required": ["title", "reserved"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Users collection."
+    },
+    "/invitations/{invitationId}": {
+      "schema": { "$ref": "#/entities/Invitation" },
+      "description": "Invitations collection."
+    },
+    "/invitations/{invitationId}/rsvp_responses/{rsvpId}": {
+      "schema": { "$ref": "#/entities/RSVPResponse" },
+      "description": "RSVP responses nested under their invitation."
+    },
+    "/invitations/{invitationId}/tables/{tableId}": {
+      "schema": { "$ref": "#/entities/Table" },
+      "description": "Tables for the invitation."
+    },
+    "/invitations/{invitationId}/gallery_photos/{photoId}": {
+      "schema": { "$ref": "#/entities/GalleryPhoto" },
+      "description": "Collaborative gallery photos."
+    },
+    "/invitations/{invitationId}/registry_items/{registryItemId}": {
+      "schema": { "$ref": "#/entities/RegistryItem" },
+      "description": "Gift registry items."
+    }
+  }
+}
